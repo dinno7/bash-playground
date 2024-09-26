@@ -1,0 +1,178 @@
+#!/bin/bash
+
+# INFO: Options
+SYNC_TO_GOOGLE_DRIVE="true"
+COMPRESS_BACKUP="true"
+
+# INFO: Get options
+for arg in "$@"; do
+  # INFO: Get --remote option
+  case $arg in
+    --remote=*)
+      SYNC_TO_GOOGLE_DRIVE="${arg#*=}"
+      shift
+      ;;
+  esac
+
+  case $arg in
+    --compress=*)
+      COMPRESS_BACKUP="${arg#*=}"
+      shift
+      ;;
+  esac
+done
+
+# INFO: Backup destination
+BACKUP_SNAPSHOT_FILE="/home/$USER/backup_snapshot.list"
+
+BACKUP_DIR_NAME="backup-home-$USER"
+BACKUP_DEST="/home/$USER/$BACKUP_DIR_NAME"
+
+BACKUP_COMPRESS_FILE_NAME="backup-home-$USER.tar.gz"
+BACKUP_COMPRESS_DIR_NAME="backups"
+BACKUP_COMPRESS_DIR_DEST="/home/$USER/$BACKUP_COMPRESS_DIR_NAME"
+BACKUP_COMPRESS_DEST="$BACKUP_COMPRESS_DIR_DEST/$BACKUP_COMPRESS_FILE_NAME"
+
+# INFO: Array of paths to exclude
+EXCLUDE_PATHS=(
+  "${BACKUP_DIR_NAME}"
+  "${BACKUP_COMPRESS_FILE_NAME}"
+  "${BACKUP_COMPRESS_DIR_NAME}/"
+  "learning"
+  "codes/**/node_modules"
+  "Music"
+  "Videos"
+  ".cache"
+  ".config/nvim"
+  ".config/google-chrome"
+  ".config/Code"
+  ".config/obsidian"
+  ".config/discord"
+  ".config/Postman"
+  ".local/share/Trash"
+  ".BurpSuite"
+  ".mozilla/firefox/*.default/Cache"
+  ".thumbnails"
+  ".npm"
+)
+
+# INFO: Create exclude arguments for rsync
+EXCLUDE_ARGS=()
+for path in "${EXCLUDE_PATHS[@]}"; do
+  EXCLUDE_ARGS+=("--exclude=$path")
+done
+
+check_last_command_status(){
+  # INFO: Check if the backup was successful
+  if [ $? -eq 0 ]; then
+    echo "---------- OK ----------"
+    if [ -n "${1+x}" ]; then
+      echo $1
+    else
+      echo "Completed successfully."
+    fi
+    echo "------------------------"
+  else
+    echo "---------- ERROR ----------" >&2
+    echo "Failed. Please check the output for errors." >&2
+    echo "---------------------------" >&2
+  fi
+}
+
+is_package_exist(){
+  if pacman -Qe $1 &> /dev/null; then
+    echo "$1 is installed"
+    return 0
+  else
+    echo "$1 is not installed" >&2
+    return 1
+  fi
+}
+
+# INFO: Check rsync is installed or not
+check_rsync_installed(){
+  if ! is_package_exist rsync &> /dev/null; then
+    echo "---------- ERROR ----------" >&2
+    echo "You must install rsync package first" >&2
+    echo "yay -S rsync" >&2
+    echo "---------------------------" >&2
+    exit 1
+  fi
+  echo "---------- OK ----------"
+  echo "Rsync is already installed"
+  echo "Getting backup from $HOME"
+  echo "------------------------"
+}
+
+# INFO: Check rclone is installed or not
+check_rclone_installed(){
+  if ! is_package_exist rclone &> /dev/null; then
+    echo "---------- ERROR ----------" >&2
+    echo "You must install rclone package to sync you backup with google-drive" >&2
+    echo "yay -S rclone" >&2
+    echo "-------------------------------" >&2
+    exit 1
+  fi
+  echo "---------- OK ----------"
+  echo "Rclone is already installed"
+  echo "Syncing backup with google-drive"
+  echo "------------------------"
+}
+
+check_rsync_installed
+
+# INFO: Get installed packages:
+INSTALLED_PKGS_DIR="$HOME/.installed_pkgs"
+mkdir $INSTALLED_PKGS_DIR 2> /dev/null
+yay -Qve > "$INSTALLED_PKGS_DIR/verbose.txt"
+yay -Qvei > "$INSTALLED_PKGS_DIR/info.txt"
+yay -Qqe > "$INSTALLED_PKGS_DIR/names.txt"
+
+# INFO: Run the backup
+
+echo "------------------------"
+echo "Rsync work start"
+rsync -az --delete --progress\
+  "${EXCLUDE_ARGS[@]}"\
+  "$HOME/"\
+  "$BACKUP_DEST"
+check_last_command_status "Rsync backup complete successfully"
+
+
+# ? Compress backup
+if [ "$COMPRESS_BACKUP" = "true" ];then
+  echo "------------------------"
+  echo "Compressing backup start"
+
+  if [ ! -d "$BACKUP_COMPRESS_DIR_DEST" ]; then
+      mkdir "$BACKUP_COMPRESS_DIR_DEST"
+  fi
+  echo -e "$(date +"%Y_%m_%d %R")\n---------------\n" >> "$BACKUP_COMPRESS_DIR_DEST/time.txt"
+
+  tar --create --gzip \
+      --file="$BACKUP_COMPRESS_DEST" \
+      --checkpoint=10000\
+      $BACKUP_DEST
+
+  check_last_command_status "Cmpressing backup complete successfully"
+
+  # ? Deleting the backup directory
+  rm -rf "$BACKUP_DEST" 2> /dev/null
+fi
+
+
+
+# ? Check to sync with google-drive or not
+# if [ "$SYNC_TO_GOOGLE_DRIVE" = "false" ]; then
+#   exit 0
+# fi
+#
+# check_rclone_installed
+#
+# echo "------------------------"
+# echo "Rclone work start"
+# yes | rclone sync --exclude-if-present .gitignore /home/backup/ tahadlrbDrive:LinuxBackup/ --progress
+# echo "Rclone work done"
+# echo "------------------------"
+#
+# check_last_command_status "Rclone backup complete successfully"

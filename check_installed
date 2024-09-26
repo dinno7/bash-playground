@@ -1,0 +1,24 @@
+#!/bin/bash
+
+is_package_exist(){
+  if pacman -Qe $1 &> /dev/null; then
+      echo "$1 is installed"
+      return 0
+  else
+      echo "$1 is not installed" >&2
+      return 1
+  fi
+}
+
+# Check if rsync is installed or not
+check_rsync_installed(){
+  if ! is_package_exist rsync &> /dev/null; then
+    echo "----------- ERROR -------------"
+    echo "You must install rsync package first"
+    echo "-------------------------------"
+    exit 1
+  fi
+  echo "Rsync already installed"
+}
+
+check_rsync_installed

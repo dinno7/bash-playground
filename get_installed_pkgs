@@ -1,0 +1,6 @@
+#! /bin/bash
+INSTALLED_PKGS_DIR="$HOME/.installed_pkgs"
+mkdir $INSTALLED_PKGS_DIR 2> /dev/null
+yay -Qvei > "$INSTALLED_PKGS_DIR/info.txt"
+yay -Qqe > "$INSTALLED_PKGS_DIR/names.txt"
+yay -Qve | tee "$INSTALLED_PKGS_DIR/verbose.txt" | less

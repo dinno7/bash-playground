@@ -1,0 +1,37 @@
+#!/bin/bash
+
+term_proxy() {
+    case "$1" in
+        enable)
+            if [ -z "$2" ]; then
+                echo "Error: Port number is required for 'enable'"
+                return 1
+            fi
+            export http_proxy="http://localhost:$2"
+            export https_proxy="http://localhost:$2"
+            echo "Proxy enabled on port $2"
+            ;;
+        disable)
+            unset http_proxy
+            unset https_proxy
+            echo "Proxy disabled"
+            ;;
+        status)
+            if [ -n "$http_proxy" ] || [ -n "$https_proxy" ]; then
+                echo "Proxy is currently enabled"
+                [ -n "$http_proxy" ] && echo "HTTP Proxy: $http_proxy"
+                [ -n "$https_proxy" ] && echo "HTTPS Proxy: $https_proxy"
+            else
+                echo "Proxy is currently disabled"
+            fi
+            ;;
+        *)
+            echo "Usage: term_proxy [enable|disable|status] [port]"
+            echo "  enable: Enable proxy for the specified port"
+            echo "  disable: Disable proxy"
+            echo "  status: Show current proxy status"
+            echo "  port: The port number for the proxy (required for 'enable')"
+            return 1
+            ;;
+    esac
+}
