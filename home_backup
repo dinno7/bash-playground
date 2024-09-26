@@ -29,7 +29,7 @@ BACKUP_DIR_NAME="backup-home-$USER"
 BACKUP_DEST="/home/$USER/$BACKUP_DIR_NAME"
 
 BACKUP_COMPRESS_FILE_NAME="backup-home-$USER.tar.gz"
-BACKUP_COMPRESS_DIR_NAME="backups"
+BACKUP_COMPRESS_DIR_NAME="backup-home-$USER-compressed"
 BACKUP_COMPRESS_DIR_DEST="/home/$USER/$BACKUP_COMPRESS_DIR_NAME"
 BACKUP_COMPRESS_DEST="$BACKUP_COMPRESS_DIR_DEST/$BACKUP_COMPRESS_FILE_NAME"
 
@@ -147,7 +147,9 @@ if [ "$COMPRESS_BACKUP" = "true" ];then
   if [ ! -d "$BACKUP_COMPRESS_DIR_DEST" ]; then
       mkdir "$BACKUP_COMPRESS_DIR_DEST"
   fi
-  echo -e "$(date +"%Y_%m_%d %R")\n---------------\n" >> "$BACKUP_COMPRESS_DIR_DEST/time.txt"
+
+  find "$BACKUP_COMPRESS_DIR_DEST/" -type f -iname "*.time" -delete
+  touch "$BACKUP_COMPRESS_DIR_DEST/$(date +"%Y_%m_%d %R").time"
 
   tar --create --gzip \
       --file="$BACKUP_COMPRESS_DEST" \
