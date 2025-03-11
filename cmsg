@@ -1,0 +1,57 @@
+#!/bin/bash
+
+use_cut=false
+while [ $# -gt 0 ]; do
+  case $1 in
+    -m) use_cut=true; shift;;
+    *) date=$1; shift;;
+  esac
+done
+
+
+# If no date is provided, set it to today
+if [ -z "$date" ]; then
+  date=$(date +"%Y%m%d")
+fi
+
+# Check if the date input is an integer
+if [[ $date =~ ^-?[0-9]{1,7}$ ]]; then
+  # Calculate the date based on the input integer
+  if [ $date -gt 0 ]; then
+    date=$(date -d "+$date days" +"%Y%m%d")
+  elif [ $date -lt 0 ]; then
+    date=$(date -d "$date days" +"%Y%m%d")
+  else
+    date=$(date +"%Y%m%d")
+  fi
+else
+  # Validate the date input
+  if ! [[ $date =~ ^[0-9]{8}$ ]]; then
+    echo "Invalid date format. Please use YYYYMMDD or an integer."
+    exit 1
+  fi
+
+  # Check if the date is valid
+  if ! date -d "${date:0:4}-${date:4:2}-${date:6:2}" >/dev/null 2>&1; then
+    echo "Invalid date. Please check the day, month, and year."
+    exit 1
+  fi
+fi
+
+# Convert the date to the format required by the git log command
+since_date=${date:0:4}-${date:4:2}-${date:6:2}T00:00:00
+until_date=${date:0:4}-${date:4:2}-${date:6:2}T23:59:59
+
+# Run the git log command
+shown_date=$(date +"%Y/%m(%b)/%d" -d $date) 
+shown_date+="\n--------------------------\n"
+
+commit_messages=$(git log --since=$since_date --until=$until_date --format=%s)
+if $use_cut; then
+  commit_messages=$(echo "$commit_messages" | cut -d: -f2)
+fi
+
+echo -e "$shown_date\n$commit_messages" | less -X
+
+# Copy to clipboard if has xclip
+echo -e "$commit_messages" | xclip -sel clip  2> /dev/null
